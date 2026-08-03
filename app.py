@@ -95,13 +95,7 @@ def main():
 
 
             st.success("Prompt built successfully.")
-            st.subheader("Generated Prompt")
-
-            st.text_area(
-              "Prompt",
-               value=prompt,
-               height=400,
-            )
+            
             
              
 
