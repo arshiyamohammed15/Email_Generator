@@ -1,13 +1,18 @@
 import streamlit as st
+
 from utils.pdf_reader import extract_text
 from utils.prompt_builder import build_prompt
 from utils.gemini_client import generate_email
+from utils.output_parser import parse_email
+
 
 def validate_inputs(uploaded_resume, job_description):
     """
     Validate required user inputs before proceeding.
+
     Returns:
-        (bool, str): (is_valid, error_message)
+        tuple:
+            (is_valid, error_message)
     """
 
     if uploaded_resume is None:
@@ -34,7 +39,8 @@ def main():
     st.write(
         """
         Upload your resume and paste the job description.
-        Click **Generate Email** to continue.
+
+        Click **Generate Email** to create a personalized job application email.
         """
     )
 
@@ -66,7 +72,7 @@ def main():
     )
 
     # -----------------------------
-    # Validation
+    # Validation & Email Generation
     # -----------------------------
     if generate_clicked:
 
@@ -79,36 +85,61 @@ def main():
             st.error(error_message)
             st.stop()
 
-        # Temporary success message.
-        # Future tasks will continue from here.
         try:
-         resume_text = extract_text(uploaded_resume)
+            # Extract resume text
+            resume_text = extract_text(uploaded_resume)
 
-         prompt = build_prompt(
-             resume_text=resume_text,
-             job_description=job_description,
-         )
-     
-         generated_email = generate_email(prompt)
-     
-         st.session_state["uploaded_resume"] = uploaded_resume
-         st.session_state["job_description"] = job_description
-         st.session_state["resume_text"] = resume_text
-         st.session_state["prompt"] = prompt
-         st.session_state["generated_email"] = generated_email
-     
-         st.success("Email generated successfully.")
-         st.subheader("Generated Email")
+            # Build Gemini prompt
+            prompt = build_prompt(
+                resume_text=resume_text,
+                job_description=job_description,
+            )
 
-         st.text_area(
-          "Generated Email",
-           value=generated_email,
-           height=350,
-          )
+            # Generate email using Gemini
+            generated_email = generate_email(prompt)
+
+            # Parse subject and body
+            subject, body = parse_email(generated_email)
+
+            # Store in session state
+            st.session_state["uploaded_resume"] = uploaded_resume
+            st.session_state["job_description"] = job_description
+            st.session_state["resume_text"] = resume_text
+            st.session_state["prompt"] = prompt
+            st.session_state["generated_email"] = generated_email
+            st.session_state["email_subject"] = subject
+            st.session_state["email_body"] = body
+
+            # Display output
+            st.success("✅ Email generated successfully.")
+
+            st.divider()
+
+            with st.container(border=True):
+                st.subheader("📧 Email Subject")
+
+                st.text_input(
+                    label="Subject",
+                    value=subject,
+                    disabled=False,
+                )
+
+            with st.container(border=True):
+                st.subheader("📝 Email Body")
+
+                st.text_area(
+                    label="Body",
+                    value=body,
+                    height=450,
+                    disabled=False,
+                )
 
         except ValueError as error:
-         st.error(str(error)) 
-        
+            st.error(str(error))
+
+        except Exception as error:
+            st.error(f"An unexpected error occurred: {error}")
+
 
 if __name__ == "__main__":
     main()
