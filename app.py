@@ -4,27 +4,12 @@ from utils.pdf_reader import extract_text
 from utils.prompt_builder import build_prompt
 from utils.gemini_client import generate_email
 from utils.output_parser import parse_email
-
-
-def validate_inputs(uploaded_resume, job_description):
-    """
-    Validate required user inputs before proceeding.
-
-    Returns:
-        tuple:
-            (is_valid, error_message)
-    """
-
-    if uploaded_resume is None:
-        return False, "Please upload your resume in PDF format."
-
-    if uploaded_resume.type != "application/pdf":
-        return False, "Only PDF files are supported."
-
-    if not job_description.strip():
-        return False, "Please enter the Job Description."
-
-    return True, ""
+from utils.validator import (
+    validate_resume,
+    validate_job_description,
+    validate_api_key,
+    validate_generated_email,
+)
 
 
 def main():
@@ -76,41 +61,61 @@ def main():
     # -----------------------------
     if generate_clicked:
 
-        is_valid, error_message = validate_inputs(
-            uploaded_resume,
-            job_description,
-        )
-
-        if not is_valid:
-            st.error(error_message)
-            st.stop()
-
         try:
-            # Extract resume text
-            resume_text = extract_text(uploaded_resume)
+            # -----------------------------
+            # Validate User Inputs
+            # -----------------------------
+            validate_resume(uploaded_resume)
+            validate_job_description(job_description)
+            validate_api_key()
 
-            # Build Gemini prompt
-            prompt = build_prompt(
-                resume_text=resume_text,
-                job_description=job_description,
-            )
+            # -----------------------------
+            # Generate Email
+            # -----------------------------
+            with st.spinner("Generating personalized email..."):
 
-            # Generate email using Gemini
-            generated_email = generate_email(prompt)
+                # Extract Resume Text
+                try:
+                    resume_text = extract_text(uploaded_resume)
+                except Exception:
+                    raise ValueError(
+                        "Unable to extract text from the uploaded PDF."
+                    )
 
-            # Parse subject and body
-            subject, body = parse_email(generated_email)
+                # Build Prompt
+                prompt = build_prompt(
+                    resume_text=resume_text,
+                    job_description=job_description,
+                )
 
-            # Store in session state
-            st.session_state["uploaded_resume"] = uploaded_resume
-            st.session_state["job_description"] = job_description
-            st.session_state["resume_text"] = resume_text
-            st.session_state["prompt"] = prompt
-            st.session_state["generated_email"] = generated_email
-            st.session_state["email_subject"] = subject
-            st.session_state["email_body"] = body
+                # Generate Email
+                try:
+                 generated_email = generate_email(prompt)
+                except Exception as error:
+                 raise ValueError(
+                   f"Failed to generate email using Gemini.\n{error}"
+                 )
 
-            # Display output
+                # Validate Gemini Response
+                validate_generated_email(generated_email)
+
+                # Parse Email
+                subject, body = parse_email(generated_email)
+
+                # -----------------------------
+                # Store Session State
+                # -----------------------------
+                st.session_state["uploaded_resume"] = uploaded_resume
+                st.session_state["job_description"] = job_description
+                st.session_state["resume_text"] = resume_text
+                st.session_state["prompt"] = prompt
+                st.session_state["generated_email"] = generated_email
+                st.session_state["email_subject"] = subject
+                st.session_state["email_body"] = body
+
+            # -----------------------------
+            # Display Output
+            # -----------------------------
             st.success("✅ Email generated successfully.")
 
             st.divider()
@@ -121,7 +126,6 @@ def main():
                 st.text_input(
                     label="Subject",
                     value=subject,
-                    disabled=False,
                 )
 
             with st.container(border=True):
@@ -131,14 +135,15 @@ def main():
                     label="Body",
                     value=body,
                     height=450,
-                    disabled=False,
                 )
 
         except ValueError as error:
             st.error(str(error))
 
-        except Exception as error:
-            st.error(f"An unexpected error occurred: {error}")
+        except Exception:
+            st.error(
+                "An unexpected error occurred. Please try again."
+            )
 
 
 if __name__ == "__main__":
