@@ -1,6 +1,7 @@
 import streamlit as st
 from utils.pdf_reader import extract_text
 from utils.prompt_builder import build_prompt
+from utils.gemini_client import generate_email
 
 def validate_inputs(uploaded_resume, job_description):
     """
@@ -81,26 +82,32 @@ def main():
         # Temporary success message.
         # Future tasks will continue from here.
         try:
-            resume_text = extract_text(uploaded_resume)
-            prompt = build_prompt(
+         resume_text = extract_text(uploaded_resume)
+
+         prompt = build_prompt(
              resume_text=resume_text,
              job_description=job_description,
-             )
+         )
+     
+         generated_email = generate_email(prompt)
+     
+         st.session_state["uploaded_resume"] = uploaded_resume
+         st.session_state["job_description"] = job_description
+         st.session_state["resume_text"] = resume_text
+         st.session_state["prompt"] = prompt
+         st.session_state["generated_email"] = generated_email
+     
+         st.success("Email generated successfully.")
+         st.subheader("Generated Email")
 
-
-            st.session_state["uploaded_resume"] = uploaded_resume
-            st.session_state["job_description"] = job_description
-            st.session_state["resume_text"] = resume_text
-            st.session_state["prompt"] = prompt
-
-
-            st.success("Prompt built successfully.")
-            
-            
-             
+         st.text_area(
+          "Generated Email",
+           value=generated_email,
+           height=350,
+          )
 
         except ValueError as error:
-            st.error(str(error))
+         st.error(str(error)) 
         
 
 if __name__ == "__main__":

@@ -40,13 +40,15 @@ Instructions:
 - Tailor the email to the provided job description.
 - Do not invent qualifications or experience that are not present in the resume.
 
-Return the response in the following format:
+Return ONLY in the following format.
 
 Subject:
 <Email Subject>
 
 Body:
-<Email Body>
+<Professional Email Body>
+
+Do not copy slogans, taglines, or marketing phrases from the job description as the email opening or subject unless they are directly relevant.
 """
 
     return prompt.strip()
